@@ -1,0 +1,25 @@
+groups:
+  - name: checkout
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum by (service) (rate(http_requests_total{status=~"5.."}[1m]))
+            / sum by (service) (rate(http_requests_total[1m])) > 0.05
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.service }} 5xx ratio above 5%"
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, service) (rate(http_request_duration_seconds_bucket[1m]))) > 0.5
+        for: 30s
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }} p95 latency above 500ms"
+      - alert: ServiceDown
+        expr: up{job="checkout"} == 0
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.service }} is not responding to scrapes"

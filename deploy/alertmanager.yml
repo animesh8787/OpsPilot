@@ -1,0 +1,11 @@
+route:
+  receiver: opspilot
+  group_by: [alertname, service]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+receivers:
+  - name: opspilot
+    webhook_configs:
+      - url: http://opspilot:8000/alerts
+        send_resolved: false
