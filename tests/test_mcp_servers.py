@@ -39,7 +39,7 @@ def logfile(tmp_path):
 def test_logs_filters_by_level_window_keyword(logfile):
     r = logs_server.search(logfile, minutes=10, level="error")
     assert r["matched"] == 2  # the 2h-old line is outside the window
-    assert r["top_messages"][0] == {"msg": "db connection pool exhausted order #", "count": 2}
+    assert r["top_messages"][0] == {"msg": "db connection pool exhausted order 2", "count": 2}
     assert logs_server.search(logfile, keyword="checkout")["matched"] == 1
     assert logs_server.search(logfile, minutes=300, level="ERROR")["matched"] == 3
 

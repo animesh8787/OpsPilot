@@ -47,9 +47,10 @@ def search(
             continue
         hits.append(r)
     groups = Counter(re.sub(r"\d+", "#", r.get("msg", "")) for r in hits)
+    example = {re.sub(r"\d+", "#", r.get("msg", "")): r.get("msg", "") for r in hits}  # latest wins
     return {
         "matched": len(hits),
-        "top_messages": [{"msg": m, "count": c} for m, c in groups.most_common(5)],
+        "top_messages": [{"msg": example[m], "count": c} for m, c in groups.most_common(5)],
         "latest": hits[-limit:],
     }
 
