@@ -16,6 +16,7 @@ from app.incidents import Commands, IncidentService
 from app.llm.factory import make_provider
 from app.logging import setup_logging
 from app.mcp_client import ToolHub
+from app.metrics import bind_store
 from app.notifier import SlackNotifier
 
 log = logging.getLogger("opspilot")
@@ -41,6 +42,7 @@ async def _build_real(stack: list) -> Deps:
         from slack_sdk.web.async_client import AsyncWebClient
 
         client = AsyncWebClient(token=s.slack_bot_token)
+    bind_store(store)
     service = IncidentService(
         store, agent, SlackNotifier(client, s.slack_channel), s.prometheus_url
     )

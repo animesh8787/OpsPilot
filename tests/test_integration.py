@@ -147,3 +147,29 @@ async def test_slash_commands(env, monkeypatch):
 
     monkeypatch.setattr(incidents_mod, "get_status", down)
     assert "Could not reach Prometheus" in _texts((await cmds.status())[1])
+
+
+def test_metrics_endpoint_reports_incident_stats(env):
+    from datetime import timedelta
+
+    from app.metrics import bind_store
+
+    _, store, svc = env
+    bind_store(store)
+    a, _ = store.open_or_dedupe("f1", "HighLatency", "checkout", "warning")
+    b, _ = store.open_or_dedupe("f2", "HighErrorRate", "checkout", "critical")
+    store.ack(a.id, "bob")
+    store.resolve(a.id, "bob")
+    with store.session() as s:  # make the timings deterministic: ack after 30s, resolve after 90s
+        row = s.get(type(a), a.id)
+        row.acknowledged_at = row.created_at + timedelta(seconds=30)
+        row.resolved_at = row.created_at + timedelta(seconds=90)
+        s.commit()
+    with TestClient(create_app(Deps(svc, Commands(svc), dry_run=True))) as c:
+        text = c.get("/metrics").text
+    assert 'opspilot_open_incidents{severity="critical"} 1.0' in text
+    assert "opspilot_mtta_seconds 30.0" in text
+    assert "opspilot_mttr_seconds 90.0" in text
+    assert "opspilot_incidents_total 2.0" in text
+    assert "opspilot_llm_latency_seconds" in text or "opspilot_alerts_received_total" in text
+    assert b.id

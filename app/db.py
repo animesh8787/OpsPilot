@@ -123,3 +123,29 @@ class Store:
     def list_all(self, limit: int = 50) -> list[Incident]:
         with self.session() as s:
             return list(s.scalars(select(Incident).order_by(Incident.id.desc()).limit(limit)))
+
+    def stats(self) -> dict:
+        """Aggregates for /metrics. MTTA/MTTR are means in seconds (0 when no data yet)."""
+        incs = self.list_all(limit=100_000)
+        open_by_sev: dict[str, int] = {}
+        for i in incs:
+            if i.status != "resolved":
+                open_by_sev[i.severity] = open_by_sev.get(i.severity, 0) + 1
+
+        def mean(deltas: list[float]) -> float:
+            return sum(deltas) / len(deltas) if deltas else 0.0
+
+        return {
+            "total": len(incs),
+            "open_by_severity": open_by_sev,
+            "mtta": mean(
+                [
+                    (i.acknowledged_at - i.created_at).total_seconds()
+                    for i in incs
+                    if i.acknowledged_at
+                ]
+            ),
+            "mttr": mean(
+                [(i.resolved_at - i.created_at).total_seconds() for i in incs if i.resolved_at]
+            ),
+        }
